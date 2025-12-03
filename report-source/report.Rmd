@@ -1,0 +1,214 @@
+---
+title: "Wpływ Stylu Życia na Jakość Snu"
+author: "Marcin Górski, Mykhailo Bondar"
+date: "2025-11-23"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  word_document: default
+lang: pl
+header-includes:
+   - \usepackage{float}
+   - \usepackage{booktabs}
+   - \usepackage{placeins}
+   - \setcounter{tocdepth}{1}
+---
+\tableofcontents
+\listoftables
+\listoffigures
+\newpage
+
+```{r przygotowanie, include=FALSE}
+library(tidyverse)
+library(knitr)
+if(!require(corrplot)) install.packages("corrplot", repos = "http://cran.us.r-project.org")
+library(corrplot)
+
+#Wczytanie danych
+dane <- read.csv("Sleep_health_and_lifestyle_dataset.csv")
+
+#Czyszczenie danych
+dane <- dane %>% 
+  mutate(BMI.Category = ifelse(BMI.Category == "Normal Weight", "Normal", BMI.Category))
+
+dane$Gender <- as.factor(dane$Gender)
+dane$BMI.Category <- as.factor(dane$BMI.Category)
+```
+
+# Opis danych
+
+Projekt przygotowaliśmy w oparciu o dane "Sleep Health and Lifestyle Dataset", zawierające informacje o blisko 400 osobach, m. in. ich zdrowiu fizycznym i jakośći snu. Dane przed przejściem do obliczeń odpowiednio wyczyściliśmy i przygotowaliśmy. W projekcie badaliśmy związki między zmiennymi: Płeć (zmienna nominalna), Kategoria BMI, Jakość snu i Poziom stresu (zmienne porządkowe, przy czym na potrzeby analizy i przeprowadzenia testów dwie ostatnie traktujemy jako ilościowe) oraz Długość snu, Poziom aktywności fizycznej (czas aktywności fizycznej dziennie w minutach), Wiek i Tętno (zmienne ilościowe).
+
+Poniższa tabela przedstawia statystyki opisowe dla badanych zmiennych ilościowych:
+
+\begin{table}[H]
+	\centering
+	\caption{Statystyki Opisowe}
+	\label{tab:descriptiveStatistics}
+	{
+		\begin{tabular}{lcccccc}
+			\toprule
+			 & Sleep Duration & Stress Level & Quality of Sleep & Physical Activity Level & Age & Heart Rate  \\
+			\cmidrule[0.4pt]{1-7}
+			Mean & $7.132$ & $5.385$ & $7.313$ & $59.17$ & $42.18$ & $70.17$  \\
+			Std. Deviation & $0.796$ & $1.775$ & $1.197$ & $20.83$ & $8.673$ & $4.136$  \\
+			Minimum & $5.800$ & $3.000$ & $4.000$ & $30.00$ & $27.00$ & $65.00$  \\
+			Maximum & $8.500$ & $8.000$ & $9.000$ & $90.00$ & $59.00$ & $86.00$  \\
+			\bottomrule
+		\end{tabular}
+	}
+\end{table}
+
+Z kolei na następnej stronie znaleźć można wizualne przedstawienie ilości danych nominalnych i porządkowych oraz rozkładów danych ilościowych:
+
+```{r wykresy, echo=F, out.width="49%", fig.align="center", fig.show='hold', fig.cap="Wizualizacje analizowanych zmiennych"}
+
+pliki_z_wykresami <- c(
+  "gender.png", "bmi.png", 
+  "stress.png", "qualityofsleep.png",
+  "sleepduration.png", "age.png",
+  "heart.png", "activity.png"
+)
+
+knitr::include_graphics(pliki_z_wykresami)
+```
+
+\newpage
+
+# Test nr 1: Płeć a długość snu
+
+Przeprowadzamy test t-Studenta dla prób niezależnych, sprawdzający równość wartości oczekiwanych. R korzysta w tym przypadku z testu t-Welcha, który nie zakłada równości wariancji w obu populacjach.
+
+## Hipoteza zerowa: średnia długość snu jest taka sama u kobiet i mężczyzn.
+## Hipoteza alternatywna: średnia długość snu kobiet i mężczyzn różni się istotnie.
+
+```{r test1}
+test1 <- t.test(Sleep.Duration ~ Gender, data=dane)
+
+
+```
+
+```{r test1wykres, echo=F, message=F, warning=F, fig.cap="Długość snu w zależności od płci"}
+
+ggplot(dane, aes(x = Gender, y = Sleep.Duration, fill = Gender)) +
+  geom_boxplot() +
+  labs(title = "Dlugosc snu w zaleznosci od plci",
+       x = "Plec",
+       y = "Dlugosc snu (godziny)") +
+  theme_minimal()
+
+```
+
+Na podstawie przeprowadzonego testu t-Studenta uzyskano wartość **wartość p = `r round(test1$p.value, 4)`**. Oznacza to, że różnica jest istotna statystycznie (odrzucamy hipotezę zerową i przyjmujemy alternatywną). Mimo, że na wykresach pudełkowych różnica zdaje się być niewielka, przeprowadzony test potwierdza jej istotność.
+
+\newpage
+
+# Test nr 2: Czy BMI wpływa na poziom stresu?
+
+Przeprowadzamy jednoczynnikową analizę wariancji ANOVA w celu sprawdzenia, czy masa ciała ma wpływ na odczuwany stres.
+
+```{r test2}
+test2 <- aov(Stress.Level ~ BMI.Category, data = dane)
+```
+
+Wartość p wyniosła $p = `r format.pval(summary(test2)[[1]][["Pr(>F)"]][1], digits=3)`$,
+co oznacza, że przynajmniej jedna z grup różni się istotnie od pozostałych (odrzucamy H0). By sprawdzić, która lub które ze średnich spowodowały taki wynik, przeprowadzamy dalszą analizę post-hoc, korzystając z **testu Tukeya** (HSD-honestly significant difference).
+
+```{r test2tabela, echo=F, warning=F}
+library(knitr)
+
+tukey_wynik <- TukeyHSD(test2)
+
+#Wyciągamy konkretną tabelę dla BMI.Category i wybieramy z niej tylko kolumnę "p adj"
+#drop = FALSE, żeby R nie zamienił tabelki w zwykłą listę liczb
+tylko_p_adj <- tukey_wynik$BMI.Category[, "p adj", drop = FALSE]
+
+kable(tylko_p_adj, 
+      digits = 4,                 
+      caption = "Istotność różnic (p adj) dla par grup",
+      col.names = "Wartość p")    
+```
+
+Powyższa tabela przedstawia p-wartości dla porównania grup parami. Stąd widać, że jedyna statystycznie istotna różnica istnieje między **osobami z nadwagą a osobami o wadze prawidłowej**. Różnice między pozostałymi grupami nie są istotne.
+
+```{r test2wykres, echo=F, message=F, warning=F, fig.cap="Poziom stresu w zależności od BMI"}
+ggplot(dane, aes(x = BMI.Category, y = Stress.Level, fill = BMI.Category)) +
+  geom_boxplot() +
+  labs(title = "Poziom stresu w zaleznosci od BMI",
+       x = "Kategoria BMI",
+       y = "Poziom stresu (1-10)") +
+  theme_minimal()
+```
+
+Wykresy pudełkowe wizualizują poziom stresu w zależności od BMI. Widać tu różnice między grupami.
+
+Wniosek: zależność między BMI a stresem istnieje, ale nie jest liniowa. Na poziom stresu mogą wpływać inne czynniki lub liczebność niektórych grup (np. otyłych) jest zbyt mała, by wykazać istotność różnic z pozostałymi kategoriami.
+
+\newpage
+
+# Część 3: Analiza korelacji i regresji
+
+## Problem badawczy
+
+Celem tej części analizy było sprawdzenie, czy styl życia (reprezentowany przez poziom aktywności fizycznej) oraz wiek badanych mają istotny statystycznie wpływ na subiektywną ocenę jakości snu.
+
+## Metodologia
+
+Wykorzystano współczynnik korelacji Pearsona do zbadania siły zależności liniowych między zmiennymi ilościowymi oraz zbudowano model regresji liniowej wielorakiej, gdzie zmienną objaśnianą była Quality of Sleep, a zmiennymi objaśniającymi Physical Activity Level oraz Age.
+
+## Analiza korelacji
+
+```{r}
+zmienne_numeryczne <- dane %>% 
+  select(Sleep.Duration, Quality.of.Sleep, Physical.Activity.Level, Stress.Level, Age, Heart.Rate)
+
+korelacje <- cor(zmienne_numeryczne)
+
+corrplot(korelacje, method = "color", type = "upper", 
+         addCoef.col = "black", 
+         tl.col = "black", tl.srt = 45, 
+         number.cex = 0.6,
+         title = "Macierz korelacji", mar=c(0,0,1,0))
+```
+
+# Model regresji liniowej
+
+Poniżej przedstawiono wyniki modelu regresji liniowej: Quality.of.Sleep ~ Physical.Activity.Level + Age.
+
+```{r}
+model_regresji <- lm(Quality.of.Sleep ~ Physical.Activity.Level + Age, data = dane)
+summ <- summary(model_regresji)
+print(summ)
+
+ggplot(dane, aes(x = Physical.Activity.Level, y = Quality.of.Sleep)) +
+  geom_point(alpha = 0.4, color = "darkblue", position = "jitter") +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
+  labs(title = "Wpływ aktywności fizycznej na jakość snu",
+       subtitle = "Linia regresji liniowej",
+       x = "Poziom aktywności (min/dzień)",
+       y = "Jakość snu (1-10)") +
+  theme_minimal()
+```
+
+## Interpretacja wyników i wnioski
+
+```{r}
+#Przygotowanie zmiennych do tekstu
+r2 <- round(summ$r.squared, 3)
+r2_proc <- round(summ$r.squared * 100, 1)
+
+coef_act <- coef(model_regresji)["Physical.Activity.Level"]
+pval_act <- summ$coefficients["Physical.Activity.Level", "Pr(>|t|)"]
+dir_act <- if(coef_act > 0) "wzrostem" else "spadkiem"
+istotnosc_act <- if(pval_act < 0.05) "ma istotny statystycznie" else "nie ma istotnego statystycznie"
+```
+
+**Analiza korelacji**: Wykres macierzy korelacji wskazuje na bardzo silną pozytywną zależność między czasem trwania snu a jego jakością. Zauważono również, że poziom stresu jest silnie ujemnie skorelowany z jakością snu (im wyższy stres, tym gorszy sen).
+
+**Model regresji**: Model regresji liniowej okazał się istotny statystycznie (p-value < 0.05).
+
+**Dopasowanie modelu**: Współczynnik determinacji ($R^2$) wyniósł `r r2`, co oznacza, że model wyjaśnia `r r2_proc`% zmienności jakości snu.
+
+**Wpływ aktywności**: Zmienna Physical Activity Level `r istotnosc_act` wpływu na jakość snu. Interpretacja współczynnika sugeruje, że wzrost aktywności fizycznej o jednostkę wiąże się ze `r dir_act` oceny jakości snu o `r round(abs(coef_act), 4)` punktu (przy stałym wieku).
+
+**Wnioski końcowe**: Analiza sugeruje, że wyższa aktywność fizyczna sprzyja lepszej ocenie jakości snu. Jest to ważna wskazówka w kontekście higieny snu, sugerująca, że ruch może być czynnikiem wspierającym zdrowy wypoczynek.
