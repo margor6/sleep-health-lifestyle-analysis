@@ -1,8 +1,8 @@
 # Sleep Health & Lifestyle Analysis 💤
 
-![R](https://img.shields.io/badge/R-tidyverse-blue)
-![Analysis](https://img.shields.io/badge/Analysis-ANOVA%20%26%20Regression-orange)
-![Status](https://img.shields.io/badge/Status-Completed-green)
+![R](https://img.shields.io/badge/R-4.0%2B-blue)
+![RMarkdown](https://img.shields.io/badge/Document-RMarkdown-orange)
+![Status](https://img.shields.io/badge/Status-Completed-success)
 
 ## Overview
 
