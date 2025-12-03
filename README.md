@@ -1,4 +1,4 @@
-# Sleep Health & Lifestyle Analysis 💤
+# Sleep Health & Lifestyle Analysis
 
 ![R](https://img.shields.io/badge/R-4.0%2B-blue)
 ![RMarkdown](https://img.shields.io/badge/Document-RMarkdown-orange)
@@ -19,6 +19,7 @@ The repository contains the full analysis in Polish (`report.pdf`), including de
 ## Methodology
 
 * **Data Cleaning:** `tidyverse`, `dplyr` (recoding BMI categories, factor handling).
+* **Initial Description:** JASP (Descriptive statistics & data quality check).
 * **Visualization:** `ggplot2` (boxplots, scatter plots), `corrplot` (correlation matrix).
 * **Statistical Tests:**
     * **T-Student Test** (Independent samples)
@@ -29,7 +30,7 @@ The repository contains the full analysis in Polish (`report.pdf`), including de
 
 ## Repository Structure
 
-* `report.Rmd` - Source code of the analysis in RMarkdown.
+* `report-source` - Folder containing source code of the analysis in RMarkdown and images of plots generated in JASP.
 * `report.pdf` - Generated report with all charts and interpretations (in Polish).
 * `Sleep_health_and_lifestyle_dataset.csv` - Raw dataset used for the analysis.
 
